@@ -1,6 +1,6 @@
 # GPU Mining Pool Monitor
 
-![Screenshot](http://full/path/to/img.jpg "Optional title")
+![Screenshot](https://github.com/ColossusFX/GPUPoolMonitor/blob/master/gpumonscreenshot.png "GPU Mining Pool Monitor")
 
 ---------------------------------------
 
