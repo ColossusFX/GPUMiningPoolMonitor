@@ -1,11 +1,9 @@
-﻿using MimeKit;
+using MimeKit;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using MailKit.Net.Smtp;
-using System.Text;
 using System.Threading.Tasks;
-using System.Net;
+using System.Windows.Forms;
 
 namespace GPUPoolMonitor
 {
@@ -14,7 +12,6 @@ namespace GPUPoolMonitor
         private readonly string recipient;
         private readonly string emailAddress;
         private readonly string minerName;
-        //private double speed;
 
         public EmailSender(string name, string email)
         {
@@ -27,62 +24,60 @@ namespace GPUPoolMonitor
             recipient = name;
             emailAddress = email;
             minerName = worker;
-            //speed = workerSpeed;
-        }
-
-        public void SendEmailWorkerMinerCount(string workername, DateTime date)
-        {
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress("Miner Monitor", "contact@iamaflip.co.uk"));
-            message.To.Add(new MailboxAddress(recipient, emailAddress));
-            message.Subject = "Miner Monitor - Worker Down Alert";
-
-            message.Body = new TextPart("plain") { Text = DateTime.Now + "\n" + "Worker Offline = " + workername + "\n" + "Last Seen = " + date };
-
-            EmailAuth(message);
         }
 
         // Loop collection of miners and check speeds
-        public void SendEmailWorkerSpeedUpdate(Dictionary<string, decimal> dict)
+        public async Task SendEmailWorkerSpeedUpdate(Dictionary<string, decimal> dict)
         {
             var message = new MimeMessage();
-            message.From.Add(new MailboxAddress("Miner Monitor", "contact@iamaflip.co.uk"));
+            message.From.Add(new MailboxAddress("GPU Miner Monitor", emailAddress));
             message.To.Add(new MailboxAddress(recipient, emailAddress));
-            message.Subject = "Miner Monitor - Worker Speed";
+            message.Subject = "GPU Miner Monitor - Worker Speed";
             string content = null;
 
             foreach (var workers in dict)
             {
-                //Console.WriteLine("Worker Speed \n" + workers.Key + "\n" + workers.Value + "\n");
-
                 content += "Worker Name \n" + workers.Key + "\n" + workers.Value + "\n" + "************************ \n\n";
             }
 
             message.Body = new TextPart("plain") { Text = content + DateTime.Now + "\n" };
-            EmailAuth(message);
+            await EmailAuthAsync(message).ConfigureAwait(false);
         }
 
-        public void EmailAuth(MimeMessage message)
+        public async Task EmailAuthAsync(MimeMessage message)
         {
-            using (var client = new SmtpClient())
+            try
             {
-                // For demo-purposes, accept all SSL certificates
-                client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+                if (Program.UserData.MailServer != string.Empty || Program.UserData.MailPassword != string.Empty || Program.UserData.MailUserName != string.Empty)
+                {
+                    using (var client = new SmtpClient())
+                    {
+                        // For demo-purposes, accept all SSL certificates
+                        client.ServerCertificateValidationCallback = (s, c, h, e) => true;
 
-                //client.Connect("p3plcpnl0656.prod.phx3.secureserver.net", 993, true);
-                client.Connect("mail.iamaflip.co.uk", 25, false);
+                        await client.ConnectAsync(Program.UserData.MailServer, 25, false).ConfigureAwait(false);
 
-                // Note: since we don't have an OAuth2 token, disable
-                // the XOAUTH2 authentication mechanism.
-                client.AuthenticationMechanisms.Remove("XOAUTH2");
+                        // Note: since we don't have an OAuth2 token, disable
+                        // the XOAUTH2 authentication mechanism.
+                        client.AuthenticationMechanisms.Remove("XOAUTH2");
 
-                client.Authenticate("monitor@coincatcher.uk", "4HGifTJYAOAJV3uIWlfq");
+                        client.Authenticate(Program.UserData.MailUserName, Program.UserData.MailPassword);
 
-                client.Send(message);
+                        client.Send(message);
 
-                Console.WriteLine("Email Sent");
+                        Console.WriteLine("Email Sent");
 
-                client.Disconnect(true);
+                        client.Disconnect(true);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Please enter mail settings in default.conf", "Warning", MessageBoxButtons.OK);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
             }
         }
     }
